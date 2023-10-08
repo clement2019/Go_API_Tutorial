@@ -3,10 +3,10 @@ package main
 import (
 	//"errors"
 	//"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	
 )
 
 //Now lets create data strcuture for the book library
@@ -55,23 +55,93 @@ var books = []book{
 	{ID: "5", Title: "The golden angels", Author: "Shakes Wein", Quauntity: 10},
 	{ID: "6", Title: "The songs of jubilee", Author: "John john", Quauntity: 20},
 }
-// now rite a fun ction that collects all the books
+// now write a fun ction that collects all the books
 
 func getBooks(c *gin.Context){
+
 c.IndentedJSON(http.StatusOK,books)
 
 }
 
-func addBook(c *gin.Context){
+//Now lets return books
 
-	var newbk book
-	if err := c.BindJSON(&newbk); err!=nil{
+func returnbook(c *gin.Context){
 
+	id,ok :=c.GetQuery("id")
+	if !ok{
+
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message": "Book ID not found"})
 		return
 	}
-	books = append(books,newbk)
-	c.IndentedJSON(http.StatusCreated,newbk)
+	book,err :=getbookByID(id)
+	if err !=nil{
+
+		c.IndentedJSON(http.StatusNotFound,gin.H{"message":"Book Not Found!"})
+		return
+	}
+	if book.Quauntity ==0{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message": "Book not available"})
+    }
+    book.Quauntity +=1
+	c.IndentedJSON(http.StatusOK,book)
 }
+
+
+
+//Now lets look at checkoking out books
+
+func checkout(c *gin.Context){
+id,ok :=c.GetQuery("id")
+
+	if !ok{
+
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message": "Book ID not found"})
+		return
+	}
+	book,err :=getbookByID(id)
+	if err !=nil{
+
+		c.IndentedJSON(http.StatusNotFound,gin.H{"message":"Book Not Found!"})
+		return
+	}
+	if book.Quauntity ==0{
+		c.IndentedJSON(http.StatusBadRequest,gin.H{"message": "Book not available"})
+
+	}
+	book.Quauntity -=1
+	c.IndentedJSON(http.StatusOK,book)
+
+}
+
+
+
+func bookById(c *gin.Context){
+
+	id := c.Param("id")
+	book,err := getbookByID(id)
+
+		if err != nil{
+			c.IndentedJSON(http.StatusNotFound,gin.H{"message":"Book Not Found!"})
+			return
+		}
+		c.IndentedJSON(http.StatusOK,book)
+	}
+
+
+func getbookByID(id string) (*book,error){
+//form lopp 
+ for i,b :=range books{
+  if b.ID==id{
+
+	return &books[i],nil
+  }
+
+ }
+ return nil,errors.New("error book ID not found")
+
+}
+
+
 
 func main(){
 
@@ -79,6 +149,9 @@ func main(){
 	router := gin.Default() 
 	router.GET("/books",getBooks)
 	router.POST("/books",createBook)
-	//router.POST("/books",addBook)
+	router.GET("/books/:id",bookById)
+	router.PATCH("/checkout",checkout)
+	router.PATCH("/return",returnbook)
+	
 	router.Run("localhost:8080")
 }
